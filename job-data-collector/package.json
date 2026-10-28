@@ -1,0 +1,16 @@
+{
+  "name": "job-data-collector",
+  "version": "1.0.0",
+  "description": "",
+  "type": "module",
+  "scripts": {
+    "scrape": "node scraper.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^18.0.9"
+  }
+}
