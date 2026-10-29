@@ -10,6 +10,37 @@ const jobsFilePath = path.resolve(
   "../../../job-data-collector/jobs.json"
 );
 
+router.get("/:id", (req, res) => {
+  try {
+    const fileContent = fs.readFileSync(jobsFilePath, "utf-8");
+    const jobs = JSON.parse(fileContent);
+
+    const job = jobs.find(
+      (item) => String(item.jobId) === req.params.id
+    );
+
+    if (!job) {
+      return res.status(404).json({
+        success: false,
+        message: "Job not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      job,
+    });
+  } catch (error) {
+    console.error("Error fetching job:", error.message);
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to fetch job details",
+    });
+  }
+});
+
+
 router.get("/", (req, res) => {
   try {
     const fileContent = fs.readFileSync(jobsFilePath, "utf-8");
