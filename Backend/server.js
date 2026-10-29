@@ -2,6 +2,7 @@
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
+const jobsRoutes = require("./src/routes/jobs.routes");
 
 const app = express();
 
@@ -23,6 +24,7 @@ app.get("/api/health", (req, res) => {
 });
 
 const PORT = process.env.PORT || 5000;
+app.use("/api/jobs", jobsRoutes);
 
 app.listen(PORT, () => {
   console.log(`HireMind AI server running on port ${PORT}`);
