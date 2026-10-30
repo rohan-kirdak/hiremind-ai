@@ -1,28 +1,43 @@
-const express = require("express");
-const multer = require("multer");
-const { extractResumeText } = require("../services/resumeParser.service");
-const {
-  extractCandidateProfile,
-} = require("../services/candidateProfile.service");
+'use strict';
+
+const express = require('express');
+const multer = require('multer');
+const { analyzeResumeFile } = require('../agents/resume.agent');
+const { updateCandidateProfile } = require('../services/conversation.service');
 
 const router = express.Router();
+
+const ALLOWED_MIMES = [
+  'application/pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+];
 
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const ext = (file.originalname || '').split('.').pop().toLowerCase();
+    if (['pdf', 'docx'].includes(ext) || ALLOWED_MIMES.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      const err = new Error('Only PDF and DOCX files are supported.');
+      err.statusCode = 400;
+      cb(err);
+    }
+  },
 });
 
 router.post(
-  "/parse",
+  '/parse',
   (req, res, next) => {
-    upload.single("resume")(req, res, (error) => {
+    upload.single('resume')(req, res, (error) => {
       if (error) {
-        console.error("Resume upload error:", error);
+        console.error('Resume upload error:', error);
 
-        return res.status(error.code === "LIMIT_FILE_SIZE" ? 413 : 400).json({
+        return res.status(error.code === 'LIMIT_FILE_SIZE' ? 413 : 400).json({
           success: false,
-          message: error.message || "Invalid resume upload.",
-          code: error.code || "UPLOAD_ERROR",
+          message: error.message || 'Invalid resume upload.',
+          code: error.code || 'UPLOAD_ERROR',
         });
       }
 
@@ -34,25 +49,31 @@ router.post(
       if (!req.file) {
         return res.status(400).json({
           success: false,
-          message:
-            "Please upload a PDF or DOCX resume using the 'resume' field.",
+          message: "Please upload a PDF or DOCX resume using the 'resume' field.",
         });
       }
 
-      const text = await extractResumeText(req.file);
+      const result = await analyzeResumeFile(req.file);
 
-      const profile = extractCandidateProfile(text);
+      // If conversationId is supplied, associate profile with the conversation
+      const conversationId = req.body?.conversationId;
+      if (conversationId && result.profile) {
+        updateCandidateProfile(conversationId, result.profile);
+      }
 
       return res.status(200).json({
         success: true,
-        message: "Resume parsed successfully.",
-        characterCount: text.length,
-        profile,
+        message: 'Resume parsed successfully.',
+        characterCount: result.characterCount,
+        profile: result.profile,
+        domain: result.domain,
+        summary: result.summary,
       });
     } catch (error) {
+      console.error('[resume.routes] Error:', error.message);
       return res.status(error.statusCode || 500).json({
         success: false,
-        message: error.statusCode ? error.message : "Unable to parse resume.",
+        message: error.statusCode ? error.message : 'Unable to parse resume.',
       });
     }
   },

@@ -1,15 +1,8 @@
 const express = require("express");
-const fs = require("fs");
-const path = require("path");
-
+const { getJobs } = require("../services/jobData.service");
 const { recommendJobs } = require("../services/jobMatching.service.v4.1");
 
 const router = express.Router();
-
-const jobsFilePath = path.resolve(
-  __dirname,
-  "../../../job-data-collector/jobs.json",
-);
 
 router.post("/", (req, res) => {
   try {
@@ -32,21 +25,32 @@ router.post("/", (req, res) => {
       Math.max(1, Number.parseInt(req.body.limit, 10) || 10),
     );
 
-    const jobs = JSON.parse(fs.readFileSync(jobsFilePath, "utf-8"));
+    const jobs = getJobs();
 
     if (!Array.isArray(jobs)) {
       throw new Error("Jobs dataset must contain an array.");
     }
 
+    const category = typeof req.body.category === 'string' ? req.body.category.toLowerCase().trim() : null;
+    let pool = jobs;
+    if (category) {
+      pool = jobs.filter(
+        (j) =>
+          j.domain?.categoryId === category ||
+          (Array.isArray(j.categories) &&
+            j.categories.some((c) => c.toLowerCase() === category)),
+      );
+    }
+
     const recommendations = recommendJobs(
       candidateProfile,
-      jobs,
+      pool,
       limit,
     );
 
     return res.status(200).json({
       success: true,
-      totalJobsConsidered: jobs.length,
+      totalJobsConsidered: pool.length,
       totalRecommendations: recommendations.length,
       recommendations,
     });
