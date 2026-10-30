@@ -1,5 +1,10 @@
 import "dotenv/config";
 import fs from "node:fs/promises";
+import { createRequire } from "node:module";
+
+const require = createRequire(import.meta.url);
+const { extractSkills: extractSkillsUnified } = require("../Backend/src/utils/skillCatalog.js");
+const { classifyJobDomain } = require("../Backend/src/utils/taxonomy.js");
 
 const API_URL = "https://himalayas.app/jobs/api";
 const API_KEY = process.env.HIMALAYAS_API_KEY;
@@ -8,44 +13,9 @@ const OUTPUT = new URL("./jobs.json", import.meta.url);
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const KNOWN_SKILLS = [
-  "JavaScript",
-  "TypeScript",
-  "React",
-  "Node.js",
-  "Python",
-  "Java",
-  "C++",
-  "HTML",
-  "CSS",
-  "SQL",
-  "MongoDB",
-  "PostgreSQL",
-  "MySQL",
-  "AWS",
-  "Docker",
-  "Kubernetes",
-  "Git",
-  "REST API",
-  "Machine Learning",
-  "Data Analysis",
-  "Next.js",
-  "Angular",
-  "Vue.js",
-  "Flutter",
-  "Express.js",
-  "Spring Boot",
-];
-
-// Extract known skills from job title and description.
-function extractSkills(text = "") {
-  return KNOWN_SKILLS.filter((skill) => {
-    const escaped = skill.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
-    const regex = new RegExp(`(^|[^a-z0-9+#.])${escaped}([^a-z0-9+#.]|$)`, "i");
-
-    return regex.test(text);
-  });
+// Extract known skills from job title and description using centralized catalog.
+function extractSkills(text = "", title = "") {
+  return extractSkillsUnified(text, title);
 }
 
 // Convert API job data into our required JSON format.
@@ -64,6 +34,8 @@ function normalizeJob(job) {
     ? new URL(rawId).pathname.split("/").filter(Boolean).pop()
     : rawId;
 
+  const domain = classifyJobDomain(job.title || "", description, job.categories || []);
+
   return {
     jobId: `himalayas_${idPart}`,
     title: job.title || "",
@@ -77,7 +49,13 @@ function normalizeJob(job) {
 
     experienceRequired: seniority,
 
-    skills: extractSkills(text),
+    skills: extractSkills(text, job.title || ""),
+
+    domain: {
+      categoryId: domain.categoryId,
+      categoryName: domain.categoryName,
+      roleName: domain.roleName,
+    },
 
     description,
 

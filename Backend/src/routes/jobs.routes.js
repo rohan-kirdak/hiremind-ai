@@ -1,53 +1,16 @@
 
 const express = require("express");
-const fs = require("fs");
-const path = require("path");
+const { getJobs, getJobById, reloadJobs } = require("../services/jobData.service");
 
 const router = express.Router();
 
-const jobsFilePath = path.resolve(
-  __dirname,
-  "../../../job-data-collector/jobs.json"
-);
-
-router.get("/:id", (req, res) => {
-  try {
-    const fileContent = fs.readFileSync(jobsFilePath, "utf-8");
-    const jobs = JSON.parse(fileContent);
-
-    const job = jobs.find(
-      (item) => String(item.jobId) === req.params.id
-    );
-
-    if (!job) {
-      return res.status(404).json({
-        success: false,
-        message: "Job not found",
-      });
-    }
-
-    return res.status(200).json({
-      success: true,
-      job,
-    });
-  } catch (error) {
-    console.error("Error fetching job:", error.message);
-
-    return res.status(500).json({
-      success: false,
-      message: "Unable to fetch job details",
-    });
-  }
-});
-
-
 router.get("/", (req, res) => {
   try {
-    const fileContent = fs.readFileSync(jobsFilePath, "utf-8");
-    const jobs = JSON.parse(fileContent);
+    const jobs = getJobs();
 
     const search = (req.query.search || "").toLowerCase();
     const location = (req.query.location || "").toLowerCase();
+    const category = (req.query.category || "").toLowerCase();
 
     const filteredJobs = jobs.filter((job) => {
       const searchableText = [
@@ -62,10 +25,15 @@ router.get("/", (req, res) => {
 
       const jobLocation = String(job.location || "").toLowerCase();
 
-      return (
-        searchableText.includes(search) &&
-        jobLocation.includes(location)
-      );
+      const matchesSearch = !search || searchableText.includes(search);
+      const matchesLocation = !location || jobLocation.includes(location);
+      const matchesCategory =
+        !category ||
+        job.domain?.categoryId === category ||
+        (Array.isArray(job.categories) &&
+          job.categories.some((c) => c.toLowerCase() === category));
+
+      return matchesSearch && matchesLocation && matchesCategory;
     });
 
     const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
@@ -93,6 +61,31 @@ router.get("/", (req, res) => {
     res.status(500).json({
       success: false,
       message: "Unable to load job listings.",
+    });
+  }
+});
+
+router.get("/:id", (req, res) => {
+  try {
+    const job = getJobById(req.params.id);
+
+    if (!job) {
+      return res.status(404).json({
+        success: false,
+        message: "Job not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      job,
+    });
+  } catch (error) {
+    console.error("Error fetching job:", error.message);
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to fetch job details",
     });
   }
 });
