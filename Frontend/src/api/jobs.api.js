@@ -14,3 +14,4 @@ export const fetchJobs = async ({ search = '', location = '', category = '', pag
 export const fetchJobById = async (jobId) => {
   return apiClient.get(`/jobs/${encodeURIComponent(jobId)}`);
 };
+

@@ -10,3 +10,4 @@ export const fetchRecommendations = async ({ candidateProfile, limit = 10, categ
   }
   return apiClient.post('/recommendations', payload);
 };
+

@@ -113,20 +113,28 @@ export default function JobDetailsModal({ job, onClose, matchAnalysis = null }) 
               {matchAnalysis.scoreBreakdown && (
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs mb-3 text-center">
                   <div className="bg-white p-2 rounded-lg border border-brand-100">
-                    <span className="text-slate-400 block text-[10px] uppercase">Title</span>
-                    <span className="font-bold text-slate-800">{matchAnalysis.scoreBreakdown.title}%</span>
+                    <span className="text-slate-400 block text-[10px] uppercase">Skills (50%)</span>
+                    <span className="font-bold text-slate-800">
+                      {matchAnalysis.scoreBreakdown.skills !== null ? `${matchAnalysis.scoreBreakdown.skills}%` : 'N/A'}
+                    </span>
                   </div>
                   <div className="bg-white p-2 rounded-lg border border-brand-100">
-                    <span className="text-slate-400 block text-[10px] uppercase">Skills</span>
-                    <span className="font-bold text-slate-800">{matchAnalysis.scoreBreakdown.skills}%</span>
+                    <span className="text-slate-400 block text-[10px] uppercase">Title (25%)</span>
+                    <span className="font-bold text-slate-800">
+                      {matchAnalysis.scoreBreakdown.title !== null ? `${matchAnalysis.scoreBreakdown.title}%` : 'N/A'}
+                    </span>
                   </div>
                   <div className="bg-white p-2 rounded-lg border border-brand-100">
-                    <span className="text-slate-400 block text-[10px] uppercase">Experience</span>
-                    <span className="font-bold text-slate-800">{matchAnalysis.scoreBreakdown.experience}%</span>
+                    <span className="text-slate-400 block text-[10px] uppercase">Experience (15%)</span>
+                    <span className="font-bold text-slate-800">
+                      {matchAnalysis.scoreBreakdown.experience !== null ? `${matchAnalysis.scoreBreakdown.experience}%` : 'N/A'}
+                    </span>
                   </div>
                   <div className="bg-white p-2 rounded-lg border border-brand-100">
-                    <span className="text-slate-400 block text-[10px] uppercase">Location</span>
-                    <span className="font-bold text-slate-800">{matchAnalysis.scoreBreakdown.location}%</span>
+                    <span className="text-slate-400 block text-[10px] uppercase">Location (10%)</span>
+                    <span className="font-bold text-slate-800">
+                      {matchAnalysis.scoreBreakdown.location !== null ? `${matchAnalysis.scoreBreakdown.location}%` : 'N/A'}
+                    </span>
                   </div>
                 </div>
               )}
@@ -213,3 +221,4 @@ export default function JobDetailsModal({ job, onClose, matchAnalysis = null }) 
     </div>
   );
 }
+

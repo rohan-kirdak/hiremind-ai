@@ -14,3 +14,4 @@ export const parseResumeFile = async (file, conversationId = null) => {
     timeout: 60000, // Parsing multi-page PDFs can take time
   });
 };
+

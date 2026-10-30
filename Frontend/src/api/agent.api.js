@@ -15,3 +15,4 @@ export const fetchConversation = async (conversationId) => {
 export const clearConversation = async (conversationId) => {
   return apiClient.delete(`/agent/conversation/${encodeURIComponent(conversationId)}`);
 };
+

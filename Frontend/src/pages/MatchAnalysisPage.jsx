@@ -237,30 +237,30 @@ export default function MatchAnalysisPage() {
 
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
                       <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-                        <span className="text-[11px] text-slate-500 block font-medium">Title Match (35%)</span>
+                        <span className="text-[11px] text-slate-500 block font-medium">Skills Overlap (50%)</span>
                         <span className="text-lg font-bold text-slate-900 mt-0.5 block">
-                          {selectedJob.scoreBreakdown.title}%
+                          {selectedJob.scoreBreakdown.skills !== null ? `${selectedJob.scoreBreakdown.skills}%` : 'N/A'}
                         </span>
                       </div>
 
                       <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-                        <span className="text-[11px] text-slate-500 block font-medium">Skills Overlap (35%)</span>
+                        <span className="text-[11px] text-slate-500 block font-medium">Role Title (25%)</span>
                         <span className="text-lg font-bold text-slate-900 mt-0.5 block">
-                          {selectedJob.scoreBreakdown.skills}%
+                          {selectedJob.scoreBreakdown.title !== null ? `${selectedJob.scoreBreakdown.title}%` : 'N/A'}
                         </span>
                       </div>
 
                       <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
                         <span className="text-[11px] text-slate-500 block font-medium">Experience (15%)</span>
                         <span className="text-lg font-bold text-slate-900 mt-0.5 block">
-                          {selectedJob.scoreBreakdown.experience}%
+                          {selectedJob.scoreBreakdown.experience !== null ? `${selectedJob.scoreBreakdown.experience}%` : 'N/A'}
                         </span>
                       </div>
 
                       <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-                        <span className="text-[11px] text-slate-500 block font-medium">Location (15%)</span>
+                        <span className="text-[11px] text-slate-500 block font-medium">Location (10%)</span>
                         <span className="text-lg font-bold text-slate-900 mt-0.5 block">
-                          {selectedJob.scoreBreakdown.location}%
+                          {selectedJob.scoreBreakdown.location !== null ? `${selectedJob.scoreBreakdown.location}%` : 'N/A'}
                         </span>
                       </div>
                     </div>

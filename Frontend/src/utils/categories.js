@@ -33,3 +33,4 @@ export const formatSalary = (salary) => {
   }
   return 'Not disclosed';
 };
+

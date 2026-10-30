@@ -63,3 +63,4 @@ export default function Navbar({ onToggleSidebar, isSidebarOpen }) {
     </header>
   );
 }
+
