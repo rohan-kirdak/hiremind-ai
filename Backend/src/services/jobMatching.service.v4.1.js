@@ -3,54 +3,21 @@
 // HireMind AI - job matching engine V4.1
 // Deterministic ranking; matchScore is a ranking score, NOT probability of selection.
 
-const SKILL_CATALOG = [
-  'JavaScript', 'TypeScript', 'Python', 'Java', 'C++', 'SQL', 'Node.js',
-  'Express.js', 'React.js', 'Next.js', 'HTML', 'CSS', 'Tailwind CSS',
-  'REST APIs', 'WebSockets', 'Socket.IO', 'JWT', 'MongoDB', 'MySQL',
-  'PostgreSQL', 'Redis', 'OpenAI API', 'Prompt Engineering', 'Docker',
-  'Git', 'GitHub Actions', 'Postman', 'Vitest', 'BullMQ', 'AWS', 'Azure',
-  'GCP', 'Flutter', 'Dart', 'Angular', 'Vue.js', 'PHP', 'C#', 'Kubernetes',
-  'GraphQL', 'Salesforce', 'ServiceNow', 'Workday', 'SAP', 'Shopify',
-  'Google Ads', 'Meta Ads', 'Android', 'Kotlin', 'Swift', 'iOS', 'React Native',
-  'Django', 'Flask', 'FastAPI', 'Spring Boot', '.NET', 'Figma', 'Selenium',
-  'Playwright', 'Cypress', 'Jest', 'Linux', 'Terraform', 'Jenkins', 'Kafka',
-  'Power BI', 'Tableau', 'Pandas', 'NumPy', 'TensorFlow', 'PyTorch',
-];
+const {
+  SKILL_CATALOG,
+  SKILL_ALIASES,
+  normalizeText,
+  canonicalSkill,
+  displaySkill,
+  uniqueSkills,
+  extractSkills,
+} = require('../utils/skillCatalog');
+const { classifyJobDomain } = require('../utils/taxonomy');
 
 const WEIGHTS = { skills: 50, title: 25, experience: 15, location: 10 };
-const SKILL_ALIASES = {
-  react: 'react.js', reactjs: 'react.js', node: 'node.js', nodejs: 'node.js',
-  express: 'express.js', expressjs: 'express.js', postgres: 'postgresql',
-  'rest api': 'rest apis', 'restful api': 'rest apis', 'restful apis': 'rest apis',
-  'socket io': 'socket.io', socketio: 'socket.io',
-  'amazon web services': 'aws', 'google cloud platform': 'gcp',
-  'c sharp': 'c#', 'react native': 'react native', 'dot net': '.net',
-};
-const SKILL_LABELS = new Map(SKILL_CATALOG.map((s) => [normalizeText(s), s]));
 
-function normalizeText(value) {
-  return String(value ?? '')
-    .toLowerCase()
-    .replace(/<[^>]*>/g, ' ')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, ' and ')
-    .replace(/[^a-z0-9+#.]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-function canonicalSkill(skill) {
-  const value = normalizeText(skill);
-  return SKILL_ALIASES[value] || value;
-}
-function displaySkill(skill) { return SKILL_LABELS.get(skill) || skill; }
-function uniqueSkills(skills = []) {
-  return [...new Set(skills.filter((s) => typeof s === 'string' && s.trim()).map(canonicalSkill).filter(Boolean))];
-}
 function extractSkillsFromDescription(description = '') {
-  const text = ` ${normalizeText(description)} `;
-  return SKILL_CATALOG
-    .filter((skill) => text.includes(` ${normalizeText(skill)} `))
-    .map(canonicalSkill);
+  return uniqueSkills(extractSkills(description));
 }
 function getCandidateSkills(profile) {
   return uniqueSkills([
@@ -100,17 +67,31 @@ function getSeniority(title) {
 }
 
 const ROLE_GROUPS = [
+  // IT & Software
   { name: 'software', patterns: [/\bsoftware (engineer|developer)\b/, /\b(full stack|fullstack) (engineer|developer)\b/, /\b(frontend|front end|backend|back end|web) (engineer|developer)\b/, /\bapplication developer\b/, /\bprogrammer\b/] },
   { name: 'mobile', patterns: [/\b(android|ios|mobile) (developer|engineer)\b/, /\bflutter developer\b/, /\breact native developer\b/] },
   { name: 'machine-learning', patterns: [/\b(machine learning|ml|ai) (engineer|developer|researcher)\b/, /\bdata scientist\b/] },
   { name: 'data', patterns: [/\bdata (analyst|engineer|architect)\b/, /\banalytics engineer\b/, /\bbi developer\b/] },
   { name: 'devops', patterns: [/\bdevops\b/, /\bsite reliability\b/, /\bplatform engineer\b/, /\bcloud engineer\b/, /\binfrastructure engineer\b/] },
   { name: 'qa', patterns: [/\bqa engineer\b/, /\bquality assurance\b/, /\btest engineer\b/, /\bsoftware tester\b/, /\bautomation tester\b/] },
-  { name: 'design', patterns: [/\b(ui|ux|product) designer\b/, /\bvisual designer\b/] },
-  { name: 'sales-marketing', patterns: [/\b(growth hacker|growth marketer|marketing|seo|sales|account executive|business development)\b/] },
-  { name: 'enterprise-platform', patterns: [/\b(salesforce|servicenow|workday|sap|sharepoint|shopify)\b/] },
   { name: 'security', patterns: [/\bsecurity (engineer|analyst|specialist)\b/, /\bcybersecurity\b/] },
-  { name: 'support', patterns: [/\b(technical support|it support|help desk|customer support)\b/] },
+  { name: 'enterprise-platform', patterns: [/\b(salesforce|servicenow|workday|sap|sharepoint|shopify)\b/] },
+
+  // Multi-Domain Role Groups
+  { name: 'design', patterns: [/\b(ui|ux|product) designer\b/, /\bvisual designer\b/, /\bgraphic design(er)?\b/, /\bart director\b/, /\bcreative director\b/, /\billustrator\b/] },
+  { name: 'finance', patterns: [/\b(accountant|accounting|finance|financial analyst|bookkeeper|auditor|payroll|controller|tax (specialist|analyst|manager))\b/] },
+  { name: 'hr', patterns: [/\b(recruiter|recruiting|talent acquisition|human resources|hr |hr\b|people ops|people operations|hr generalist|hr manager)\b/] },
+  { name: 'support', patterns: [/\b(technical support|it support|help desk|customer support|customer service|customer success|client support|client success)\b/] },
+  { name: 'operations', patterns: [/\b(project manager|project coordinator|program manager|business analyst|operations manager|operations analyst|scrum master|agile coach)\b/] },
+  { name: 'marketing', patterns: [/\b(marketing|seo|sem|growth marketer|growth hacker|content (marketing|strategist)|copywriter|paid media|ppc|social media)\b/] },
+  { name: 'sales', patterns: [/\b(sales|account executive|business development|bdr|sdr|account manager|sales rep(resentative)?)\b/] },
+  { name: 'healthcare', patterns: [/\b(clinical|nurse|medical|health|pharmacology|radiologist|physician|patient care)\b/] },
+  { name: 'education', patterns: [/\b(teacher|tutor|instructor|faculty|professor|educator|lecturer)\b/] },
+  { name: 'legal', patterns: [/\b(legal counsel|attorney|lawyer|compliance|regulatory|paralegal)\b/] },
+  { name: 'engineering-nonsoftware', patterns: [/\b(mechanical|civil|electrical|hvac|structural|hardware) engineer\b/] },
+  { name: 'logistics', patterns: [/\b(supply chain|logistics|procurement|inventory|warehouse)\b/] },
+  { name: 'hospitality', patterns: [/\b(pilot|aviation|flight attendant|hospitality|hotel)\b/] },
+  { name: 'sales-marketing', patterns: [/\b(growth hacker|growth marketer|marketing|seo|sales|account executive|business development)\b/] },
 ];
 function getRoleFamily(title) {
   const text = normalizeText(title);
@@ -262,6 +243,7 @@ function calculateJobMatch(profile, job) {
   const experience = calculateExperienceMatch(profile, job);
   const location = calculateLocationMatch(profile, job);
   const locationEligibility = calculateLocationEligibility(profile, job);
+  const domain = classifyJobDomain(job.title, job.description, job.categories);
   const components = [
     { name: 'skills', result: skills, weight: WEIGHTS.skills },
     { name: 'title', result: title, weight: WEIGHTS.title },
@@ -304,9 +286,21 @@ function calculateJobMatch(profile, job) {
   reasons.push(...penalties);
 
   return {
-    jobId: job.jobId, title: job.title, company: job.company, location: job.location,
-    workMode: job.workMode, experienceRequired: job.experienceRequired,
-    sourceLink: job.sourceLink, publishedAt: job.publishedAt,
+    jobId: job.jobId,
+    title: job.title,
+    company: job.company,
+    location: job.location,
+    domain: {
+      category: domain.categoryName,
+      categoryId: domain.categoryId,
+      role: domain.roleName,
+    },
+    workMode: job.workMode,
+    experienceRequired: job.experienceRequired,
+    sourceLink: job.sourceLink,
+    applicationUrl: job.sourceLink || null,
+    salary: job.salary || null,
+    publishedAt: job.publishedAt,
     matchScore: Math.round(Math.max(0, Math.min(100, score))),
     matchedSkills: skills.matchedSkills, missingSkills: skills.missingSkills,
     skillEvidence: skills.skillEvidence ? { source: skills.skillEvidence.source, level: skills.skillEvidence.evidenceLevel, identifiedCount: skills.skillEvidence.skills.length } : { source: 'unavailable', level: 'none', identifiedCount: 0 },

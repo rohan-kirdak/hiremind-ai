@@ -65,5 +65,62 @@ const tie = recommendJobs(profile, [
   { jobId: 'a', title: 'Full Stack Developer', skills: ['JavaScript'], experienceRequired: 'Entry-level' },
 ], 2);
 assert.equal(tie[0].jobId, 'a', 'ties are deterministically sorted by title then stable id fallback');
-console.log('PASS: 23 assertions');
+console.log('PASS: 23 original assertions');
+
+// ============================================================
+// Phase 2 — Data & Matching Quality Test Suite (10 Assertions)
+// ============================================================
+
+// 1. HTML5 / HTML normalization
+const m1 = calculateJobMatch({ skills: ['HTML5'] }, { jobId: 't1', title: 'Web Developer', skills: ['HTML'] });
+assert.equal(m1.scoreBreakdown.skills, 100, 'HTML5 candidate matches HTML job');
+assert.deepEqual(m1.matchedSkills, ['HTML'], 'HTML displayed with proper casing');
+
+// 2. CSS3 / CSS normalization
+const m2 = calculateJobMatch({ skills: ['CSS3'] }, { jobId: 't2', title: 'Web Developer', skills: ['CSS'] });
+assert.equal(m2.scoreBreakdown.skills, 100, 'CSS3 candidate matches CSS job');
+assert.deepEqual(m2.matchedSkills, ['CSS'], 'CSS displayed with proper casing');
+
+// 3. React / React.js normalization
+const m3 = calculateJobMatch({ skills: ['React'] }, { jobId: 't3', title: 'Frontend Developer', skills: ['React.js'] });
+assert.equal(m3.scoreBreakdown.skills, 100, 'React candidate matches React.js job');
+assert.deepEqual(m3.matchedSkills, ['React.js'], 'React.js displayed with canonical name');
+
+// 4. Node / Node.js normalization
+const m4 = calculateJobMatch({ skills: ['Node'] }, { jobId: 't4', title: 'Backend Developer', skills: ['Node.js'] });
+assert.equal(m4.scoreBreakdown.skills, 100, 'Node candidate matches Node.js job');
+assert.deepEqual(m4.matchedSkills, ['Node.js'], 'Node.js displayed with canonical name');
+
+// 5. PostgreSQL / Postgres normalization
+const m5 = calculateJobMatch({ skills: ['Postgres'] }, { jobId: 't5', title: 'Database Developer', skills: ['PostgreSQL'] });
+assert.equal(m5.scoreBreakdown.skills, 100, 'Postgres candidate matches PostgreSQL job');
+assert.deepEqual(m5.matchedSkills, ['PostgreSQL'], 'PostgreSQL displayed with canonical name');
+
+// 6. AWS / Amazon Web Services normalization
+const m6 = calculateJobMatch({ skills: ['Amazon Web Services'] }, { jobId: 't6', title: 'Cloud Engineer', skills: ['AWS'] });
+assert.equal(m6.scoreBreakdown.skills, 100, 'Amazon Web Services candidate matches AWS job');
+assert.deepEqual(m6.matchedSkills, ['AWS'], 'AWS displayed with canonical name');
+
+// 7. Empty candidate skills
+const m7 = calculateJobMatch({ skills: [] }, { jobId: 't7', title: 'Fullstack Developer', skills: ['JavaScript', 'React.js'] });
+assert.equal(m7.scoreBreakdown.skills, 0, 'Empty candidate skills gets 0% skills score');
+assert.equal(m7.matchedSkills.length, 0);
+assert.equal(m7.missingSkills.length, 2);
+
+// 8. Empty job skills
+const m8 = calculateJobMatch({ skills: ['JavaScript'] }, { jobId: 't8', title: 'Developer', skills: [], description: '' });
+assert.equal(m8.scoreBreakdown.skills, null, 'Empty job skills returns null skills breakdown');
+assert.equal(m8.skillEvidence.level, 'none', 'Empty job skills yields evidence none');
+
+// 9. Duplicate candidate skills
+const m9 = calculateJobMatch({ skills: ['React', 'React.js', 'reactjs', 'HTML5', 'HTML'] }, { jobId: 't9', title: 'Frontend Developer', skills: ['React.js', 'HTML'] });
+assert.equal(m9.scoreBreakdown.skills, 100, 'Duplicate skills do not inflate or break calculation');
+assert.equal(m9.matchedSkills.length, 2);
+
+// 10. Missing / null descriptions
+const m10 = calculateJobMatch({ skills: ['JavaScript'] }, { jobId: 't10', title: 'Developer', description: null });
+assert.ok(m10.matchScore >= 0, 'Null description does not crash matching engine');
+
+console.log('PASS: 10 Phase 2 data quality assertions');
+console.log('PASS: Total 33 assertions verified');
 console.log(JSON.stringify(ranked.map((j) => ({ id: j.jobId, score: j.matchScore, title: j.scoreBreakdown.title, experience: j.scoreBreakdown.experience, skills: j.scoreBreakdown.skills, evidence: j.skillEvidence.level, locationEligibility: j.locationEligibility.status })), null, 2));

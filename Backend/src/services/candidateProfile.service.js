@@ -1,4 +1,5 @@
 const { z } = require("zod");
+const { extractSkills, SKILL_CATALOG } = require("../utils/skillCatalog");
 
 const CandidateProfileSchema = z.object({
   name: z.string().nullable(),
@@ -36,35 +37,8 @@ const CandidateProfileSchema = z.object({
   ),
 });
 
-const SKILL_LIST = [
-  "JavaScript",
-  "TypeScript",
-  "Python",
-  "Java",
-  "SQL",
-  "Node.js",
-  "Express.js",
-  "React.js",
-  "HTML5",
-  "CSS3",
-  "Tailwind CSS",
-  "REST APIs",
-  "WebSockets",
-  "Socket.IO",
-  "JWT",
-  "MongoDB",
-  "MySQL",
-  "Redis",
-  "OpenAI API",
-  "Prompt Engineering",
-  "Docker",
-  "Git",
-  "GitHub Actions",
-  "Postman",
-  "Vitest",
-  "BullMQ",
-  "MERN",
-];
+// SKILL_LIST reference maintained for backward compatibility; powered by centralized catalog
+const SKILL_LIST = SKILL_CATALOG;
 
 function cleanLines(text) {
   return text
@@ -85,10 +59,17 @@ function findSection(lines, headings) {
 
   const endHeadings = [
     "professional summary",
+    "summary",
     "technical skills",
+    "skills",
+    "core competencies",
     "experience",
+    "work experience",
+    "professional experience",
+    "employment history",
     "projects",
     "education",
+    "certifications",
     "publications, leadership & achievements",
     "publications",
     "achievements",
@@ -155,31 +136,72 @@ function extractCandidateProfile(text) {
 
   const phone = text.match(/(?:\+?\d{1,3}[- ]?)?\d{10}\b/)?.[0] || null;
 
-  const skillsSection = findSection(lines, ["TECHNICAL SKILLS"]);
-  const skillsText = skillsSection.join(" ");
+  const skillsSection = findSection(lines, [
+    "TECHNICAL SKILLS",
+    "SKILLS",
+    "CORE COMPETENCIES",
+    "TECHNICAL PROFICIENCIES",
+    "AREAS OF EXPERTISE",
+    "PROFESSIONAL SKILLS",
+    "KEY SKILLS",
+    "SKILLS & EXPERTISE",
+    "CORE SKILLS",
+  ]);
+  const skillsText = skillsSection.length > 0 ? skillsSection.join(" ") : text;
+  const skills = extractSkills(skillsText);
 
-  const skills = SKILL_LIST.filter((skill) => {
-    const escaped = skill.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    return new RegExp(`\\b${escaped}\\b`, "i").test(skillsText);
-  });
+  const summarySection = findSection(lines, [
+    "PROFESSIONAL SUMMARY",
+    "SUMMARY",
+    "EXECUTIVE SUMMARY",
+    "CAREER SUMMARY",
+    "PROFILE",
+    "ABOUT ME",
+  ]);
 
-  const summarySection = findSection(lines, ["PROFESSIONAL SUMMARY"]);
-  const designationLine = lines.find(
-    (line) =>
-      /developer|engineer|designer|analyst|intern/i.test(line) &&
-      line.includes("|"),
+  const TITLE_REGEX =
+    /\b(?:developer|engineer|designer|analyst|intern|accountant|auditor|bookkeeper|recruiter|specialist|executive|coordinator|officer|consultant|representative|architect|director|lead|teacher|instructor|counsel|attorney|nurse|physician|writer|marketer|administrator|associate|scientist|strategist|assistant|manager)\b/i;
+
+  const pipeTitleLine = lines.find(
+    (line) => TITLE_REGEX.test(line) && line.includes("|"),
   );
 
+  const headerTitleLine = lines.slice(1, 8).find((line) => {
+    if (
+      line.includes("@") ||
+      /(?:phone|tel|mobile|http|github|linkedin|\+?\d{10})/i.test(line)
+    ) {
+      return false;
+    }
+    if (line.length > 70) return false;
+    return TITLE_REGEX.test(line);
+  });
+
   // Experience parsing: headings and bullet descriptions are heuristic.
-  const experienceLines = findSection(lines, ["EXPERIENCE"]);
+  const experienceLines = findSection(lines, [
+    "EXPERIENCE",
+    "WORK EXPERIENCE",
+    "PROFESSIONAL EXPERIENCE",
+    "EMPLOYMENT HISTORY",
+    "WORK HISTORY",
+  ]);
   const experience = [];
+
+  const EXP_ROLE_REGEX =
+    /\b(?:intern|developer|engineer|manager|analyst|accountant|auditor|bookkeeper|recruiter|specialist|executive|coordinator|officer|consultant|representative|designer|teacher|instructor|counsel|attorney|nurse|physician|writer|marketer|administrator|associate|scientist|strategist|assistant|lead|director|head|vp)\b/i;
+
+  const NON_ROLE_VERB_REGEX =
+    /^(?:developed|built|worked|implemented|debugged|managed|led|conducted|handled|audited|prepared|reconciled|recruited|executed|coordinated|supervised|analyzed|assisted|trained|optimized|resolved|negotiated)\b/i;
+
+  const ACTION_VERB_REGEX =
+    /^(?:[•\-\*–]\s*|(?:Developed|Built|Worked|Implemented|Debugged|Created|Designed|Integrated|Maintained|Managed|Led|Conducted|Handled|Audited|Prepared|Reconciled|Recruited|Executed|Coordinated|Supervised|Analyzed|Assisted|Trained|Optimized|Resolved|Negotiated|Generated|Authored|Wrote|Published|Monitored|Reviewed|Administered|Collaborated|Directed|Delivered|Ensured|Increased|Improved|Decreased|Reduced)\b)/i;
 
   for (let i = 0; i < experienceLines.length; i++) {
     const line = experienceLines[i];
 
     if (
-      /intern|developer|engineer|manager|analyst/i.test(line) &&
-      !/developed|built|worked|implemented|debugged/i.test(line)
+      EXP_ROLE_REGEX.test(line) &&
+      !NON_ROLE_VERB_REGEX.test(line)
     ) {
       const role = line
         .replace(
@@ -197,22 +219,19 @@ function extractCandidateProfile(text) {
 
       if (
         experienceLines[i + 1] &&
-        !/developed|built|worked|implemented|debugged/i.test(
-          experienceLines[i + 1],
-        )
+        !ACTION_VERB_REGEX.test(experienceLines[i + 1]) &&
+        !EXP_ROLE_REGEX.test(experienceLines[i + 1])
       ) {
         company = experienceLines[i + 1];
       }
 
-      let j = i + 1;
+      let j = i + (company ? 2 : 1);
 
       while (
         j < experienceLines.length &&
-        /^(Developed|Built|Worked|Implemented|Debugged|Created|Designed|Integrated|Maintained)/i.test(
-          experienceLines[j],
-        )
+        ACTION_VERB_REGEX.test(experienceLines[j])
       ) {
-        description.push(experienceLines[j]);
+        description.push(experienceLines[j].replace(/^[•\-\*–]\s*/, ""));
         j++;
       }
 
@@ -225,11 +244,15 @@ function extractCandidateProfile(text) {
     }
   }
 
-  const educationLines = findSection(lines, ["EDUCATION"]);
+  const educationLines = findSection(lines, [
+    "EDUCATION",
+    "ACADEMIC BACKGROUND",
+    "QUALIFICATIONS",
+  ]);
   const education = [];
 
   const degreePattern =
-    /\b(?:B\s*\.?\s*E\s*\.?|B\s*\.?\s*Tech|M\s*\.?\s*E\s*\.?|M\s*\.?\s*Tech|Bachelor|Master|Diploma|Ph\s*\.?\s*D)\b/i;
+    /\b(?:B\s*\.?\s*E\s*\.?|B\s*\.?\s*Tech|M\s*\.?\s*E\s*\.?|M\s*\.?\s*Tech|B\s*\.?\s*Com|M\s*\.?\s*Com|B\s*\.?\s*B\s*\.?\s*A|M\s*\.?\s*B\s*\.?\s*A|B\s*\.?\s*Sc|M\s*\.?\s*Sc|B\s*\.?\s*A\b|M\s*\.?\s*A\b|LL\s*\.?\s*B|LL\s*\.?\s*M|Bachelor|Master|Diploma|Ph\s*\.?\s*D|Doctorate|Associate|CPA|Chartered\s+Accountant|CA)\b/i;
 
   const institutionPattern = /\b(?:college|university|institute)\b/i;
 
@@ -278,25 +301,24 @@ function extractCandidateProfile(text) {
   for (let i = 0; i < projectLines.length; i++) {
     const line = projectLines[i];
 
+    const separatorMatch = line.match(/\s+[–—-]\s+|[–—]/);
+
     if (
-      /[–-]/.test(line) &&
+      separatorMatch &&
       !/^(Built|Developed|Implemented|Integrated|Created|Deployed|Designed)\b/i.test(
         line,
       )
     ) {
-      const parts = line.split(/[–-]/);
-      const name = parts[0].trim();
+      const sepIndex = line.indexOf(separatorMatch[0]);
+      const name = line.slice(0, sepIndex).trim();
 
       if (!name || name.length > 100) continue;
 
-      const techLine = parts.slice(1).join("-").trim();
+      const techLine = line.slice(sepIndex + separatorMatch[0].length).trim();
 
       projects.push({
         name,
-        technologies: SKILL_LIST.filter((skill) => {
-          const escaped = skill.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-          return new RegExp(`\\b${escaped}\\b`, "i").test(techLine);
-        }),
+        technologies: extractSkills(techLine),
         description: [],
       });
     } else if (
@@ -316,7 +338,14 @@ function extractCandidateProfile(text) {
         : null,
     email,
     phone,
-    designation: designationLine || summarySection[0] || null,
+    designation:
+      pipeTitleLine ||
+      headerTitleLine ||
+      experience[0]?.role ||
+      (summarySection[0] && summarySection[0].length <= 80
+        ? summarySection[0]
+        : null) ||
+      null,
     skills,
     experience,
     education,
