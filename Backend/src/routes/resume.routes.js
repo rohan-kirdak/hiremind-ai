@@ -7,21 +7,28 @@ const { updateCandidateProfile } = require('../services/conversation.service');
 
 const router = express.Router();
 
-const ALLOWED_MIMES = [
-  'application/pdf',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-];
-
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const ext = (file.originalname || '').split('.').pop().toLowerCase();
-    if (['pdf', 'docx'].includes(ext) || ALLOWED_MIMES.includes(file.mimetype)) {
+    const mime = file.mimetype || '';
+
+    const isPdf =
+      ext === 'pdf' &&
+      (mime === 'application/pdf' || mime === 'application/x-pdf');
+    const isDocx =
+      ext === 'docx' &&
+      (mime ===
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+        mime === 'application/msword');
+
+    if (isPdf || isDocx) {
       cb(null, true);
     } else {
       const err = new Error('Only PDF and DOCX files are supported.');
       err.statusCode = 400;
+      err.code = 'INVALID_FILE_TYPE';
       cb(err);
     }
   },
