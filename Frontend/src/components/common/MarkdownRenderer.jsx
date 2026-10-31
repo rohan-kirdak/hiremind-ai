@@ -38,6 +38,7 @@ export default function MarkdownRenderer({ content, className = '' }) {
   };
 
   const formatInline = (text) => {
+    if (!text || typeof text !== 'string') return '';
     // Split by inline code: `code`
     const parts = text.split(/(`[^`]+`)/g);
 

@@ -15,6 +15,7 @@ import {
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
 import Badge from '../components/common/Badge';
+import ErrorAlert from '../components/common/ErrorAlert';
 import MarkdownRenderer from '../components/common/MarkdownRenderer';
 import { sendChatMessage, fetchConversation, clearConversation } from '../api/agent.api';
 import { useProfile } from '../context/ProfileContext';
@@ -41,7 +42,7 @@ export default function AssistantPage() {
       `- **Career Guidance Agent**: Explains match scores, analyzes skill gaps, and prepares interview questions.`,
       '',
       hasProfile
-        ? `Your active profile is loaded (**${profile.designation || 'Candidate'}** with **${profile.skills?.length || 0} skills**). You can ask me for job recommendations or skill gap advice!`
+        ? `Your active profile is loaded (**${profile?.designation || 'Candidate'}** with **${profile?.skills?.length || 0} skills**). You can ask me for job recommendations or skill gap advice!`
         : `You haven't uploaded a resume yet. You can paste your resume text here, or head to **My Profile** to upload a PDF or DOCX file.`,
     ].join('\n'),
     timestamp: new Date().toISOString(),
@@ -209,7 +210,9 @@ export default function AssistantPage() {
       {/* Messages Scroll Area */}
       <div className="flex-1 overflow-y-auto py-6 space-y-4 px-1">
         {messages.map((msg, index) => {
+          if (!msg) return null;
           const isUser = msg.role === 'user';
+          const content = typeof msg.content === 'string' ? msg.content : (msg.content ? JSON.stringify(msg.content) : '');
           return (
             <div
               key={index}
@@ -235,9 +238,9 @@ export default function AssistantPage() {
                 }`}
               >
                 {isUser ? (
-                  <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                  <p className="whitespace-pre-wrap leading-relaxed">{content}</p>
                 ) : (
-                  <MarkdownRenderer content={msg.content} />
+                  <MarkdownRenderer content={content} />
                 )}
               </div>
             </div>
