@@ -3,11 +3,53 @@
 const fs = require('fs');
 const path = require('path');
 
-const jobsFilePath = path.resolve(
-  __dirname,
-  '../../../job-data-collector/jobs.json'
-);
+/**
+ * Resolves the absolute path to jobs.json across various deployment configurations:
+ * 1. Explicit override via process.env.JOBS_DATA_PATH
+ * 2. Standard monorepo relative to __dirname (Backend/src/services -> ../../../job-data-collector/jobs.json)
+ * 3. Relative to process.cwd() when running from repository root (job-data-collector/jobs.json)
+ * 4. Relative to process.cwd() when running from Backend root (../job-data-collector/jobs.json)
+ * 5. Bundled fallback inside Backend/data/jobs.json
+ *
+ * @returns {string|null} Resolved absolute file path or null if not found
+ */
+function resolveJobsFilePath() {
+  if (process.env.JOBS_DATA_PATH) {
+    const customPath = path.resolve(process.env.JOBS_DATA_PATH);
+    if (fs.existsSync(customPath)) {
+      return customPath;
+    }
+    console.warn(
+      `[jobData.service] Specified JOBS_DATA_PATH not found at: ${customPath}. Checking fallback locations.`
+    );
+  }
 
+  const candidatePaths = [
+    // Standard relative to __dirname: <root>/job-data-collector/jobs.json
+    path.resolve(__dirname, '../../../job-data-collector/jobs.json'),
+    // Relative to process.cwd() when running from repository root
+    path.resolve(process.cwd(), 'job-data-collector/jobs.json'),
+    // Relative to process.cwd() when running from Backend root
+    path.resolve(process.cwd(), '../job-data-collector/jobs.json'),
+    // Bundled fallback inside Backend/data/jobs.json
+    path.resolve(__dirname, '../../data/jobs.json'),
+    path.resolve(process.cwd(), 'data/jobs.json'),
+  ];
+
+  for (const candidate of candidatePaths) {
+    try {
+      if (fs.existsSync(candidate)) {
+        return candidate;
+      }
+    } catch (_) {
+      // Continue checking next candidate
+    }
+  }
+
+  return null;
+}
+
+let jobsFilePath = resolveJobsFilePath() || path.resolve(__dirname, '../../../job-data-collector/jobs.json');
 let cachedJobs = null;
 let lastLoadedAt = null;
 
@@ -27,18 +69,31 @@ function getJobs(options = {}) {
   }
 
   try {
-    if (!fs.existsSync(jobsFilePath)) {
-      console.warn(`[jobData.service] Warning: jobs file not found at ${jobsFilePath}. Initializing with empty list.`);
+    const resolvedPath = resolveJobsFilePath();
+
+    if (!resolvedPath || !fs.existsSync(resolvedPath)) {
+      const candidates = [
+        process.env.JOBS_DATA_PATH ? path.resolve(process.env.JOBS_DATA_PATH) : null,
+        path.resolve(__dirname, '../../../job-data-collector/jobs.json'),
+        path.resolve(process.cwd(), 'job-data-collector/jobs.json'),
+        path.resolve(process.cwd(), '../job-data-collector/jobs.json'),
+      ].filter(Boolean);
+
+      console.warn(
+        `[jobData.service] WARNING: jobs.json dataset could not be found! ` +
+        `Checked locations: ${candidates.join(', ')}. Initializing with empty list.`
+      );
       cachedJobs = [];
       lastLoadedAt = new Date();
       return cachedJobs;
     }
 
-    const fileContent = fs.readFileSync(jobsFilePath, 'utf8');
+    jobsFilePath = resolvedPath;
+    const fileContent = fs.readFileSync(resolvedPath, 'utf8');
     const parsed = JSON.parse(fileContent);
 
     if (!Array.isArray(parsed)) {
-      throw new Error(`[jobData.service] Invalid dataset: expected JSON array in ${jobsFilePath}`);
+      throw new Error(`[jobData.service] Invalid dataset: expected JSON array in ${resolvedPath}`);
     }
 
     cachedJobs = parsed;
@@ -95,5 +150,6 @@ module.exports = {
   getJobById,
   getCacheStatus,
   jobsFilePath,
+  resolveJobsFilePath,
 };
 
