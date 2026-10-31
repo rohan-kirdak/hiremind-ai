@@ -4,8 +4,15 @@ const express = require('express');
 const multer = require('multer');
 const { analyzeResumeFile } = require('../agents/resume.agent');
 const { updateCandidateProfile } = require('../services/conversation.service');
+const { createRateLimiter } = require('../middlewares/rateLimiter');
 
 const router = express.Router();
+
+const uploadLimiter = createRateLimiter({
+  windowMs: Number(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
+  max: Number(process.env.RATE_LIMIT_UPLOAD_MAX) || 15,
+  message: 'Resume upload limit reached for this session. Please wait before uploading another file.',
+});
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -36,6 +43,7 @@ const upload = multer({
 
 router.post(
   '/parse',
+  uploadLimiter,
   (req, res, next) => {
     upload.single('resume')(req, res, (error) => {
       if (error) {

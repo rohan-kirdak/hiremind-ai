@@ -15,7 +15,27 @@ const agentRoutes = require("./src/routes/agent.routes");
 
 const app = express();
 
-app.use(cors());
+const allowedOrigins = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(',').map((o) => o.trim()).filter(Boolean)
+  : [];
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow non-browser requests (e.g. mobile apps, curl, automated probes)
+      if (!origin) return callback(null, true);
+      // In development or when CORS_ORIGIN is not specified, allow all
+      if (process.env.NODE_ENV !== 'production' || allowedOrigins.length === 0) {
+        return callback(null, true);
+      }
+      if (allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+        return callback(null, true);
+      }
+      return callback(new Error(`Origin ${origin} not allowed by CORS`));
+    },
+    credentials: true,
+  })
+);
 app.use(express.json());
 
 app.get("/", (req, res) => {
@@ -48,9 +68,18 @@ app.use((req, res) => {
 // Global error handler
 app.use((err, req, res, next) => {
   console.error("Unhandled server error:", err.message || err);
+  const isProd = process.env.NODE_ENV === 'production';
+  const status = err.statusCode || 500;
+  const safeMessage =
+    status < 500
+      ? err.message
+      : isProd
+      ? "Internal server error."
+      : err.message || "Internal server error.";
+
   res.status(err.statusCode || 500).json({
     success: false,
-    message: err.message || "Internal server error.",
+    message: safeMessage,
   });
 });
 
